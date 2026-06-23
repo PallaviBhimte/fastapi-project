@@ -9,11 +9,6 @@ app = FastAPI()
 def root():
     return {"message": "Welcome to FastAPI."}
 
-# # Get all products
-# @app.get("/products")
-# def get_products():
-#     return get_all_products()
-
 # Get list of products from name-based Search filter
 @app.get("/products")
 def list_products(
@@ -22,6 +17,25 @@ def list_products(
         min_length = 1, 
         max_length = 50, 
         description = "Search by Product Name (case insensitive)"
+    ),
+    sort_by_price:bool = Query(
+        default = False,
+        description = " Sort products by price"
+    ),
+    order:str = Query(
+        default = "asc",
+        description = "Sort order when sort_by_price = true (asc, desc)"
+    ),
+    limit:int = Query(
+        default = 10,
+        ge = 1,
+        le = 100,
+        description = "Number of items to return"
+    ),
+    offset:int = Query(
+        default = 0,
+        ge = 0,
+        description = "Pagination offset"
     )
 ):
     # Load all products from data
@@ -34,14 +48,23 @@ def list_products(
         # Filter & list products after matching search term and product name
         products = [p for p in products if search_term in p.get("name", "").lower()]
 
-        # Raise error if no products match the search term
-        if not products:
-            raise HTTPException(
-                status_code = 404,
-                detail = f"No product found matching name = {name}"
-            )
-        
-        # Count final results after filtering
-        total = len(products)
+    # Raise exception if no products match the search term
+    if not products:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"No product found matching name = {name}"
+        )
+    
+    # Sort products by price in ascending or descending order
+    if sort_by_price:
+        # if order is desc then reverse = True, order is asc then revesrse = False
+        reverse = order == "desc"
+        products = sorted(products, key = lambda p:p.get("price", 0), reverse=reverse)
 
-    return {"total": total, "items": products}
+    # Count final results after filtering
+    total = len(products)
+
+    # Pagination using offset and limit
+    products = products[offset:offset+limit]
+
+    return {"total": total, "limit":limit, "items": products}
