@@ -96,4 +96,4 @@ def get_product_by_id(
 @app.post("/products", status_code = 201)
 def create_product(product: Product):
     # Return received product data
-    return product
+    return product.model_dump(mode = "json")
