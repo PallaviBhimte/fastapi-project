@@ -4,12 +4,95 @@ from pydantic import (
     AnyUrl, 
     field_validator, 
     model_validator, 
-    computed_field
+    computed_field,
+    EmailStr
 )
 from typing import Annotated, Literal, Optional, List
 from uuid import UUID
 from datetime import datetime
 
+# Seller data model 
+class Seller(BaseModel):
+    
+    # Unique seller identifier (UUID format)
+    id: UUID
+    
+    # Seller name
+    name: Annotated[
+        str,
+        Field(
+            min_length = 2,
+            max_length = 60,
+            title = "Seller Name",
+            description = "Name of the Seller (2-60 chars).",
+            examples = ["Mi Store", "Apple Store Australia"]
+        )
+    ]
+    
+    # Seller Email
+    email: EmailStr
+    
+    # Seller website URL
+    website: AnyUrl
+    
+    # Allow only approved seller email domains
+    @field_validator("email", mode = "after")
+    @classmethod
+    def validate_seller_email_format(cls, value:EmailStr):
+        allowed_domains = {
+            "mistore.in",
+            "realmeofficial.in",
+            "samsungindia.in",
+            "lenovostore.in",
+            "hpworld.in",
+            "applestoreindia.in",
+            "dellexclusive.in",
+            "sonycenter.in",
+            "oneplusstore.in",
+            "asusexclusive.in"   
+        }
+        
+        # Extract email domain
+        domain = str(value).split("@")[-1].lower()
+        
+        # Validate domain against allowlist
+        if domain not in allowed_domains:
+            raise ValueError(f"Seller email domain '{domain}' is not allowed. Allowed domains: {allowed_domains}")
+        return value
+
+# Product dimensions in centimeters
+class DimensionCM(BaseModel):
+    
+    # Product length
+    length: Annotated[
+        float,
+        Field(
+            gt = 0,
+            strict = True,
+            description = "Length in cm"
+        )
+    ]
+    
+    # Product width
+    width: Annotated[
+        float,
+        Field(
+            gt = 0,
+            strict = True,
+            description = "Width in cm"
+        )
+    ]
+    
+    # Product height
+    height: Annotated[
+        float,
+        Field(
+            gt = 0,
+            strict = True,
+            description = "Height in cm"
+        )
+    ]
+    
 # Product data model with validation rules
 class Product(BaseModel):
     
@@ -143,6 +226,12 @@ class Product(BaseModel):
     # Product creation timestamp
     created_at: datetime
     
+    # Dimension
+    dimensions_cm: DimensionCM
+    
+    # Seller
+    seller: Seller
+    
     # Validate SKU format
     @field_validator("sku", mode = "after")
     @classmethod
@@ -170,3 +259,10 @@ class Product(BaseModel):
     @property
     def final_price(self) -> float:
         return round(self.price * (1 - self.discount_percent / 100), 2)
+    
+    # Calculate product volume in cubic centimeters (L × W × H)
+    @computed_field
+    @property
+    def volume_cm3(self) -> float:
+        d = self.dimensions_cm
+        return round(d.length * d.width * d.height, 2)
