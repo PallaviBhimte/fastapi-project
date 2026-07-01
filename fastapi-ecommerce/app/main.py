@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, Query, Path
-from service.products import get_all_products, add_product
-from schema.product import Product
+from service.products import get_all_products, add_product, remove_product, change_product
+from schema.product import Product, ProductUpdate
 
 from datetime import datetime
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 # Create FastAPI application
 app = FastAPI()
@@ -80,8 +80,7 @@ def get_product_by_id(
             ...,
             min_length = 36,
             max_length = 36,
-            description = "UUID of the products",
-            example = "c47ea2457-c4a9-4bfg-9dd5-6464r0ebe343"
+            description = "UUID of the products"
         )
 ):
     # Load all products from data
@@ -114,3 +113,28 @@ def create_product(product: Product):
     
     # Return received product data
     return product.model_dump(mode = "json")
+
+# Delete product endpoint
+@app.delete("/products/{product_id}")
+def delete_product(
+    product_id:UUID = Path(..., description = "UUID of the product to delete")
+):
+    # Remove product and handle exceptions
+    try:
+        res = remove_product(str(product_id))
+        return res
+    except Exception as e:
+        raise HTTPException(status_code = 400, detail = str(e))
+
+# Update product endpoint
+@app.put("/products/{product_id}")
+def update_product(
+    product_id:UUID = Path(..., description = "Product UUID"),
+    payload: ProductUpdate = ...,
+):  
+    # Update product and handle exceptions
+    try:
+        update_product = change_product(str(product_id), payload.model_dump(mode = "json", exclude_unset = True))
+        return update_product
+    except Exception as e:
+        raise HTTPException(status_code = 404, detail = str(e))
