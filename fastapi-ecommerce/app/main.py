@@ -1,20 +1,45 @@
-from fastapi import FastAPI, HTTPException, Query, Path
+from dotenv import load_dotenv
+import os
+from fastapi import FastAPI, HTTPException, Query, Path, Depends, Request
+from fastapi.responses import JSONResponse
 from service.products import get_all_products, add_product, remove_product, change_product
 from schema.product import Product, ProductUpdate
-
 from datetime import datetime
 from uuid import uuid4, UUID
+from typing import List, Dict
+
+# Load environment variables from .env file
+load_dotenv()    
 
 # Create FastAPI application
 app = FastAPI()
 
+# @app.middleware("http")
+# async def lifecycle(request: Request, call_next):
+#     print("Before request")
+#     response = await call_next(request)
+#     print("After request")
+#     return response
+
+def common_logic():
+    return "Hello There"
+
 # Route path GET endpoint
-@app.get('/')
-def root():
-    return {"message": "Welcome to FastAPI."}
+@app.get("/", response_model=dict)
+def root(dep=Depends(common_logic)):
+    DB_PATH = os.getenv("BASE_URL")
+    # return {"message": "Welcomne to FastAPI.", "dependency": dep, "data_path": DB_PATH}
+    return JSONResponse(
+        status_code=200,
+        content={
+            "message": "Welcomne to FastAPI.",
+            "dependency": dep,
+            "data_path": DB_PATH,
+        },
+    )
 
 # Get list of products from name-based Search filter
-@app.get("/products")
+@app.get("/products", response_model = Dict)
 def list_products(
     name:str = Query(
         default = None, 
@@ -74,7 +99,7 @@ def list_products(
     return {"total": total, "limit":limit, "items": products}
 
 # Get product by its unique ID
-@app.get("/products/{product_id}")
+@app.get("/products/{product_id}",response_model = Dict)
 def get_product_by_id(
         product_id: str = Path(
             ...,
